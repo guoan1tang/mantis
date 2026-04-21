@@ -1,10 +1,11 @@
 """Main screen with three-panel layout."""
 from textual.screen import Screen
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Static
-from textual.widgets import DataTable
+from textual.containers import Horizontal
+from textual.widgets import DataTable, Input
 
 from agent_proxy.core.store import Store
+from agent_proxy.memory.system import MemorySystem
+from agent_proxy.agents.base import IntentRouter
 from agent_proxy.tui.widgets.flow_list import FlowList
 from agent_proxy.tui.widgets.flow_detail import FlowDetail
 from agent_proxy.tui.widgets.ai_panel import AIPanel
@@ -23,9 +24,11 @@ class MainScreen(Screen):
     }
     """
 
-    def __init__(self, store: Store):
+    def __init__(self, store: Store, agents: dict, memory: MemorySystem):
         super().__init__()
         self.store = store
+        self.agents = agents
+        self.memory = memory
 
     def compose(self):
         yield StatusBar(id="status_bar")
@@ -45,7 +48,6 @@ class MainScreen(Screen):
             flow_list = self.query_one("#flow_list", FlowList)
             flow_list.add_flow(flow)
 
-        # Update status bar
         status_bar = self.query_one("#status_bar", StatusBar)
         status_bar.update_status(
             domain="",
@@ -59,3 +61,25 @@ class MainScreen(Screen):
         flow = flow_list.get_selected_flow()
         flow_detail = self.query_one("#flow_detail", FlowDetail)
         flow_detail.show_flow(flow)
+
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle AI command input."""
+        ai_panel = self.query_one("#ai_panel", AIPanel)
+        user_input = event.value
+        ai_panel.input_widget.value = ""
+
+        agent_name = IntentRouter.route(user_input)
+        agent = self.agents.get(agent_name)
+
+        if not agent:
+            ai_panel.show_error("LLM not configured. Use --api-key.")
+            return
+
+        result = await agent.execute(user_input)
+        self.memory.record_interaction(user_input, result.message)
+
+        if result.success:
+            ai_panel.show_result(result.message)
+            await self.memory.consolidate()
+        else:
+            ai_panel.show_error(result.message)
