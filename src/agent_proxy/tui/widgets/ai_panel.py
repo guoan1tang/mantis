@@ -1,5 +1,5 @@
 """AI panel: input field and result output."""
-from textual.widgets import Static, Input
+from textual.widgets import Static, Input, TextArea
 from textual.containers import Vertical
 
 
@@ -9,7 +9,7 @@ class AIPanel(Vertical):
     DEFAULT_CSS = """
     AIPanel {
         dock: bottom;
-        height: 4;
+        height: 10;
         background: $primary;
     }
     AIPanel Input {
@@ -17,8 +17,9 @@ class AIPanel(Vertical):
     }
     AIPanel Static {
         width: 100%;
-        height: 2;
+        min-height: 6;
         color: $success;
+        content-align: left top;
     }
     """
 
@@ -36,9 +37,9 @@ class AIPanel(Vertical):
 
     def show_result(self, message: str) -> None:
         """Display agent result."""
-        if len(message) > 200:
-            message = message[:200] + "..."
-        self.output_widget.update(f"[green]✓[/green] {message}")
+        # Convert newlines to markdown line breaks for proper rendering
+        formatted = message.replace("\n", "\n\n")
+        self.output_widget.update(f"[green]✓[/green] {formatted}")
 
     def show_error(self, message: str) -> None:
         """Display error."""
