@@ -21,10 +21,12 @@ class FlowList(DataTable):
         Binding("enter", "select_row", "Select", show=False),
     ]
 
-    def __init__(self):
-        super().__init__()
-        self.add_columns("Status", "Method", "Path", "Size", "Duration")
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._flows: dict[str, FlowRecord] = {}
+
+    def on_mount(self) -> None:
+        self.add_columns("Status", "Method", "Path", "Size", "Duration")
 
     def add_flow(self, flow: FlowRecord) -> None:
         """Add a flow to the table."""
