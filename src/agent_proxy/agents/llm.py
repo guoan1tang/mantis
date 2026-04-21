@@ -14,9 +14,16 @@ class LLMClient:
 
     def __init__(self, config: LLMConfig):
         self.config = config
+        # Create http client that bypasses ALL system proxies
+        import httpx
+        self._http_client = httpx.AsyncClient(
+            trust_env=False,
+            timeout=httpx.Timeout(30.0, connect=10.0),
+        )
         self.client = AsyncOpenAI(
             api_key=config.api_key,
             base_url=config.base_url if config.base_url else None,
+            http_client=self._http_client,
         )
 
     async def call(
