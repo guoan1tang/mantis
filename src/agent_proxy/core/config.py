@@ -32,6 +32,7 @@ class MemoryConfig:
     consolidation_interval: int = 15
     semantic_confidence_threshold: float = 0.7
     stale_memory_days: int = 7
+    memory_dir: str = str(Path.home() / ".agent-proxy" / "memory")
 
 
 @dataclass
@@ -102,5 +103,6 @@ def _config_to_dict(config: AppConfig) -> dict:
             "consolidation_interval": config.memory.consolidation_interval,
             "semantic_confidence_threshold": config.memory.semantic_confidence_threshold,
             "stale_memory_days": config.memory.stale_memory_days,
+            "memory_dir": config.memory.memory_dir,
         },
     }
