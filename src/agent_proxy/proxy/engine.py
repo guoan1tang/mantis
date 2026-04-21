@@ -6,6 +6,8 @@ import socket
 
 from mitmproxy.master import Master
 from mitmproxy.options import Options
+from mitmproxy.addons.proxyserver import Proxyserver
+from mitmproxy.addons.next_layer import NextLayer
 
 from agent_proxy.core.config import AppConfig
 from agent_proxy.core.store import Store
@@ -32,6 +34,8 @@ class ProxyEngine:
         )
 
         self.master = Master(opts)
+        self.master.addons.add(Proxyserver())
+        self.master.addons.add(NextLayer())
         self.master.addons.add(self.addon)
 
         async def run_master():
