@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-proxy"
+version = "0.1.0"
+description = "AI-driven HTTP/HTTPS interception proxy with natural language control"
+requires-python = ">=3.12"
+dependencies = [
+    "mitmproxy>=10.0",
+    "textual>=0.50",
+    "openai>=1.0",
+    "pyyaml>=6.0",
+    "qrcode[pil]>=7.4",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.3",
+]
+
+[project.scripts]
+agent-proxy = "agent_proxy.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
