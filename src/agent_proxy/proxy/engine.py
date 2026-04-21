@@ -6,8 +6,9 @@ import socket
 
 from mitmproxy.master import Master
 from mitmproxy.options import Options
-from mitmproxy.addons.proxyserver import Proxyserver
-from mitmproxy.addons.next_layer import NextLayer
+from mitmproxy import addons
+from mitmproxy.addons import errorcheck
+from mitmproxy.addons import termlog
 
 from agent_proxy.core.config import AppConfig
 from agent_proxy.core.store import Store
@@ -34,8 +35,11 @@ class ProxyEngine:
         )
 
         self.master = Master(opts)
-        self.master.addons.add(Proxyserver())
-        self.master.addons.add(NextLayer())
+        # Register default addons (tlsconfig for HTTPS interception, etc.)
+        self.master.addons.add(*addons.default_addons())
+        self.master.addons.add(termlog.TermLog())
+        self.master.addons.add(errorcheck.ErrorCheck())
+        # Register our custom traffic capture addon
         self.master.addons.add(self.addon)
 
         async def run_master():
