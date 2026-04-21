@@ -5,11 +5,11 @@ from textual.widgets import DataTable, Input
 
 from agent_proxy.core.store import Store
 from agent_proxy.memory.system import MemorySystem
-from agent_proxy.agents.base import IntentRouter
 from agent_proxy.tui.widgets.flow_list import FlowList
 from agent_proxy.tui.widgets.flow_detail import FlowDetail
 from agent_proxy.tui.widgets.ai_panel import AIPanel
 from agent_proxy.tui.widgets.status_bar import StatusBar
+from agent_proxy.tui.screens.ai import AIScreen
 
 
 class MainScreen(Screen):
@@ -63,23 +63,11 @@ class MainScreen(Screen):
         flow_detail.show_flow(flow)
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Handle AI command input."""
-        ai_panel = self.query_one("#ai_panel", AIPanel)
+        """Open AI dialog for user input."""
         user_input = event.value
+        ai_panel = self.query_one("#ai_panel", AIPanel)
         ai_panel.input_widget.value = ""
 
-        agent_name = IntentRouter.route(user_input)
-        agent = self.agents.get(agent_name)
-
-        if not agent:
-            ai_panel.show_error("LLM not configured. Use --api-key.")
-            return
-
-        result = await agent.execute(user_input)
-        self.memory.record_interaction(user_input, result.message)
-
-        if result.success:
-            ai_panel.show_result(result.message)
-            await self.memory.consolidate()
-        else:
-            ai_panel.show_error(result.message)
+        screen = AIScreen(store=self.store, agents=self.agents, memory=self.memory)
+        screen.set_query(user_input)
+        await self.app.push_screen(screen)
