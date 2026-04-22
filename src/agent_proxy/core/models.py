@@ -39,6 +39,37 @@ class FlowRecord:
         from urllib.parse import urlparse
         return urlparse(self.url).path or "/"
 
+    def to_dict(self, include_body: bool = True) -> dict:
+        """Convert to JSON-serializable dict."""
+        import base64
+
+        result: dict = {
+            "id": self.id,
+            "timestamp": self.timestamp.isoformat(),
+            "method": self.method,
+            "url": self.url,
+            "host": self.host,
+            "path": self.path,
+            "status_code": self.status_code,
+            "request_headers": self.request_headers,
+            "response_headers": self.response_headers,
+            "content_type": self.content_type,
+            "size": self.size,
+            "duration_ms": self.duration_ms,
+            "intercepted": self.intercepted,
+            "modified": self.modified,
+            "tags": self.tags,
+            "security_issues": self.security_issues,
+        }
+        if include_body:
+            result["request_body_base64"] = (
+                base64.b64encode(self.request_body).decode() if self.request_body else None
+            )
+            result["response_body_base64"] = (
+                base64.b64encode(self.response_body).decode() if self.response_body else None
+            )
+        return result
+
 
 @dataclass
 class RuleCondition:
