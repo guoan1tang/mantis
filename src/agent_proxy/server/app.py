@@ -2,6 +2,7 @@
 from aiohttp import web
 
 from agent_proxy.core.store import Store
+from agent_proxy.server.routes import register_routes
 
 
 def create_app(store: Store) -> web.Application:
@@ -9,6 +10,7 @@ def create_app(store: Store) -> web.Application:
     app = web.Application()
     app["store"] = store
     app.router.add_get("/api/health", health_handler)
+    register_routes(app)
     return app
 
 
