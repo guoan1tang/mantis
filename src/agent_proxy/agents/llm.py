@@ -54,6 +54,34 @@ class LLMClient:
                     raise
                 await asyncio.sleep(2 ** attempt)
 
+    async def stream_response(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_retries: int = 3,
+    ):
+        """Stream LLM response chunks using streaming API. Yields text chunks."""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        for attempt in range(max_retries):
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.config.model,
+                    messages=messages,
+                    temperature=0.1,
+                    stream=True,
+                )
+                async for chunk in response:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        yield chunk.choices[0].delta.content
+                return
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise
+                await asyncio.sleep(2 ** attempt)
+
     async def call_json(
         self,
         system_prompt: str,

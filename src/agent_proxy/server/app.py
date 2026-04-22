@@ -4,14 +4,17 @@ from aiohttp import web
 from agent_proxy.core.store import Store
 from agent_proxy.server.routes import register_routes
 from agent_proxy.server.ws import websocket_handler
+from agent_proxy.server.sse import register_sse_routes
 
 
-def create_app(store: Store) -> web.Application:
+def create_app(store: Store, agents: dict | None = None) -> web.Application:
     """Create and configure the aiohttp application."""
     app = web.Application()
     app["store"] = store
+    app["agents"] = agents or {}
     app.router.add_get("/api/health", health_handler)
     register_routes(app)
+    register_sse_routes(app)
     app.router.add_get("/ws/events", websocket_handler)
     return app
 
