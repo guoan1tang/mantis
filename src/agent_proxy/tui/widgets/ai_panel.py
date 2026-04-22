@@ -1,35 +1,147 @@
-"""AI panel: compact input bar at the bottom."""
-from textual.widgets import Static, Input
-from textual.containers import Vertical
-from textual.binding import Binding
+"""AI chat panel - full-height right panel with thinking animation."""
+from textual.widgets import Static, Input, LoadingIndicator
+from textual.containers import Vertical, Horizontal
+from textual import work
+
+from agent_proxy.agents.base import IntentRouter
 
 
 class AIPanel(Vertical):
-    """Compact AI command input bar."""
-
-    BINDINGS = [
-        Binding("/", "focus_input", "AI", show=True),
-    ]
+    """AI chat panel with message history and loading animation."""
 
     DEFAULT_CSS = """
     AIPanel {
-        dock: bottom;
-        height: 3;
-        background: $boost;
+        layout: vertical;
+        background: $surface;
+        border-left: tall $primary;
     }
-    AIPanel Input {
+    #chat_header {
+        height: 3;
+        padding: 0 1;
+        background: $primary-darken-2;
+        border-bottom: solid $primary;
+    }
+    #chat_header Static {
+        color: $text;
+        text-style: bold;
+    }
+    #chat_messages {
+        height: 1fr;
+        padding: 1;
+        overflow-y: auto;
+    }
+    #thinking_area {
+        height: auto;
+        padding: 0 1;
+        display: none;
+    }
+    #thinking_area LoadingIndicator {
+        width: 3;
+        height: 3;
+    }
+    #thinking_area Static {
+        color: $warning;
+        padding-left: 1;
+    }
+    #chat_input {
+        height: 3;
+        dock: bottom;
+        border-top: solid $primary;
+    }
+    #chat_input Input {
         width: 100%;
-        margin: 0 1;
     }
     """
 
+    def __init__(self, agents=None, store=None, memory=None, **kwargs):
+        super().__init__(**kwargs)
+        self.agents = agents or {}
+        self.store = store
+        self.memory = memory
+        self._history: list[tuple[str, str]] = []  # (role, message)
+
     def compose(self):
-        yield Input(placeholder="Press / to ask AI, or type command here...", id="ai_input")
+        yield Static("[bold]  AI Agent[/bold]", id="chat_header")
+        yield Static("", id="chat_messages")
+        with Horizontal(id="thinking_area"):
+            yield LoadingIndicator()
+            yield Static("Thinking...", id="thinking_text")
+        yield Input(placeholder="Ask AI about the traffic...", id="chat_input")
 
     @property
     def input_widget(self) -> Input:
-        return self.query_one("#ai_input", Input)
+        return self.query_one("#chat_input", Input)
 
-    def action_focus_input(self) -> None:
-        """Focus the input field."""
-        self.input_widget.focus()
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle user input."""
+        if event.input.id == "chat_input":
+            query = event.value
+            event.input.value = ""
+            self.run_agent(query)
+
+    def run_agent(self, query: str) -> None:
+        """Add user message, show thinking, start background work."""
+        self._add_message("user", query)
+        self.query_one("#thinking_area").display = True
+        self._execute_agent(query)
+
+    @work(exclusive=True, thread=True)
+    def _execute_agent(self, query: str) -> None:
+        """Run agent in a background thread."""
+        import asyncio
+
+        agent_name = IntentRouter.route(query)
+        agent = self.agents.get(agent_name)
+
+        if not agent:
+            self.call_later(self._show_result, False, "LLM not configured. Use --api-key.")
+            return
+
+        try:
+            loop = asyncio.new_event_loop()
+            result = loop.run_until_complete(agent.execute(query))
+
+            if self.memory:
+                loop.run_until_complete(
+                    self.memory.record_interaction(query, result.message)
+                )
+            loop.close()
+
+            self.call_later(self._show_result, result.success, result.message)
+        except Exception as e:
+            self.call_later(self._show_result, False, f"Error: {e}")
+
+    def _show_result(self, success: bool, message: str) -> None:
+        """Show result and hide thinking."""
+        self.query_one("#thinking_area").display = False
+        if success:
+            self._add_message("assistant", message)
+        else:
+            self._add_message("error", message)
+        self.call_later(self._scroll_bottom)
+
+    def _scroll_bottom(self) -> None:
+        """Scroll chat to bottom."""
+        self.query_one("#chat_messages", Static).scroll_end()
+
+    def _add_message(self, role: str, message: str) -> None:
+        """Add a message to the chat."""
+        self._history.append((role, message))
+        self._render_messages()
+
+    def _render_messages(self) -> None:
+        """Render all messages."""
+        output = self.query_one("#chat_messages", Static)
+        lines = []
+        for role, msg in self._history[-10:]:  # Show last 10 messages
+            if role == "user":
+                lines.append(f"[bold #87CEEB]You:[/bold #87CEEB] {msg}")
+                lines.append("")
+            elif role == "assistant":
+                lines.append(f"[bold #90EE90]AI:[/bold #90EE90] {msg}")
+                lines.append("")
+            elif role == "error":
+                lines.append(f"[bold #FF6B6B]Error:[/bold #FF6B6B] {msg}")
+                lines.append("")
+        lines.append("")
+        output.update("\n".join(lines))

@@ -1,25 +1,41 @@
-"""Main screen with three-panel layout."""
+"""Main screen with left (traffic) + right (AI chat) layout."""
 from textual.screen import Screen
-from textual.containers import Horizontal
-from textual.widgets import DataTable, Input
+from textual.containers import Horizontal, Vertical
+from textual.widgets import DataTable
 
 from agent_proxy.core.store import Store
 from agent_proxy.memory.system import MemorySystem
 from agent_proxy.tui.widgets.flow_list import FlowList
 from agent_proxy.tui.widgets.flow_detail import FlowDetail
-from agent_proxy.tui.widgets.ai_panel import AIPanel
 from agent_proxy.tui.widgets.status_bar import StatusBar
-from agent_proxy.tui.screens.ai import AIScreen
+from agent_proxy.tui.widgets.ai_panel import AIPanel
 
 
 class MainScreen(Screen):
-    """Main TUI screen with flow list, detail, and AI input."""
+    """Main TUI screen with left traffic panel and right AI chat."""
 
     CSS = """
     Screen {
         layout: vertical;
     }
     #main_area {
+        height: 1fr;
+    }
+    #traffic_panel {
+        width: 55%;
+        height: 1fr;
+        layout: vertical;
+    }
+    #flow_list {
+        width: 100%;
+        height: 50%;
+    }
+    #flow_detail {
+        width: 100%;
+        height: 50%;
+    }
+    #ai_panel {
+        width: 1fr;
         height: 1fr;
     }
     """
@@ -33,9 +49,15 @@ class MainScreen(Screen):
     def compose(self):
         yield StatusBar(id="status_bar")
         with Horizontal(id="main_area"):
-            yield FlowList(id="flow_list")
-            yield FlowDetail(id="flow_detail")
-        yield AIPanel(id="ai_panel")
+            with Vertical(id="traffic_panel"):
+                yield FlowList(id="flow_list")
+                yield FlowDetail(id="flow_detail")
+            yield AIPanel(
+                agents=self.agents,
+                store=self.store,
+                memory=self.memory,
+                id="ai_panel",
+            )
 
     def on_mount(self) -> None:
         """Subscribe to flow events."""
@@ -61,13 +83,3 @@ class MainScreen(Screen):
         flow = flow_list.get_selected_flow()
         flow_detail = self.query_one("#flow_detail", FlowDetail)
         flow_detail.show_flow(flow)
-
-    async def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Open AI dialog for user input."""
-        user_input = event.value
-        ai_panel = self.query_one("#ai_panel", AIPanel)
-        ai_panel.input_widget.value = ""
-
-        screen = AIScreen(store=self.store, agents=self.agents, memory=self.memory)
-        screen.set_query(user_input)
-        await self.app.push_screen(screen)
