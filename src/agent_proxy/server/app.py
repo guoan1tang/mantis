@@ -3,6 +3,7 @@ from aiohttp import web
 
 from agent_proxy.core.store import Store
 from agent_proxy.server.routes import register_routes
+from agent_proxy.server.ws import websocket_handler
 
 
 def create_app(store: Store) -> web.Application:
@@ -11,6 +12,7 @@ def create_app(store: Store) -> web.Application:
     app["store"] = store
     app.router.add_get("/api/health", health_handler)
     register_routes(app)
+    app.router.add_get("/ws/events", websocket_handler)
     return app
 
 
