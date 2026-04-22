@@ -32,7 +32,6 @@ class MainScreen(Screen):
     }
     #flow_detail {
         width: 100%;
-        height: 50%;
     }
     #ai_panel {
         width: 1fr;
@@ -65,10 +64,25 @@ class MainScreen(Screen):
 
     async def refresh_flows(self) -> None:
         """Check for new flows and update the list."""
+        flow_list = self.query_one("#flow_list", FlowList)
+        flow_detail = self.query_one("#flow_detail", FlowDetail)
+        latest_flow = None
+
         while not self.store.flow_events.empty():
             flow = self.store.flow_events.get_nowait()
-            flow_list = self.query_one("#flow_list", FlowList)
             flow_list.add_flow(flow)
+            latest_flow = flow
+
+        # Auto-select latest flow and show detail
+        if latest_flow:
+            flow_detail.show_flow(latest_flow)
+            # Move cursor to the new row
+            try:
+                row_count = flow_list.row_count
+                if row_count > 0:
+                    flow_list.move_cursor(row=row_count - 1)
+            except Exception:
+                pass
 
         status_bar = self.query_one("#status_bar", StatusBar)
         status_bar.update_status(
