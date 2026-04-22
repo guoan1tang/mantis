@@ -85,31 +85,34 @@ class AIPanel(Vertical):
         self.query_one("#thinking_area").display = True
         self._execute_agent(query)
 
-    @work(exclusive=True, thread=True)
-    def _execute_agent(self, query: str) -> None:
-        """Run agent in a background thread."""
-        import asyncio
-
+    @work(exclusive=True)
+    async def _execute_agent(self, query: str) -> None:
+        """Run agent asynchronously in background."""
         agent_name = IntentRouter.route(query)
         agent = self.agents.get(agent_name)
 
         if not agent:
-            self.call_later(self._show_result, False, "LLM not configured. Use --api-key.")
+            self._show_result(False, "LLM not configured. Use --api-key.")
             return
 
         try:
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(agent.execute(query))
+            result = await agent.execute(query)
 
             if self.memory:
-                loop.run_until_complete(
-                    self.memory.record_interaction(query, result.message)
-                )
-            loop.close()
+                self._do_consolidate(result.message, query)
 
-            self.call_later(self._show_result, result.success, result.message)
+            self._show_result(result.success, result.message)
         except Exception as e:
-            self.call_later(self._show_result, False, f"Error: {e}")
+            self._show_result(False, f"Error: {e}")
+
+    async def _do_consolidate(self, message: str, query: str) -> None:
+        """Run memory consolidation in background."""
+        if self.memory:
+            await self.memory.record_interaction(query, message)
+            try:
+                await self.memory.consolidate()
+            except Exception:
+                pass
 
     def _show_result(self, success: bool, message: str) -> None:
         """Show result and hide thinking."""
@@ -118,10 +121,6 @@ class AIPanel(Vertical):
             self._add_message("assistant", message)
         else:
             self._add_message("error", message)
-        self.call_later(self._scroll_bottom)
-
-    def _scroll_bottom(self) -> None:
-        """Scroll chat to bottom."""
         self.query_one("#chat_messages", Static).scroll_end()
 
     def _add_message(self, role: str, message: str) -> None:
