@@ -3,15 +3,24 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 let pythonProcess = null;
+let viteProcess = null;
 let mainWindow = null;
 let apiPort = 9080;
+let pythonReady = false;
+let viteReady = false;
+
+function tryCreateWindow() {
+  if (pythonReady && (viteReady || !process.env.NODE_ENV || process.env.NODE_ENV !== 'development')) {
+    createWindow();
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
     },
@@ -30,7 +39,7 @@ function startPythonServer() {
     ? path.join(process.resourcesPath, 'agent-proxy/bin/agent-proxy')
     : process.platform === 'win32' ? 'python' : 'python3';
 
-  const args = ['-m', 'agent_proxy.cli', '--server', '--port', String(apiPort)];
+  const args = ['-m', 'agent_proxy.cli', '--server'];
 
   const envPath = path.join(__dirname, '../../../.venv/bin/python');
   const actualPython = isPackaged ? pythonPath : envPath;
@@ -43,7 +52,8 @@ function startPythonServer() {
   pythonProcess.stdout.on('data', (data) => {
     console.log(`Python: ${data}`);
     if (data.toString().includes('API')) {
-      setTimeout(createWindow, 1000);
+      pythonReady = true;
+      tryCreateWindow();
     }
   });
 
@@ -56,19 +66,40 @@ function startPythonServer() {
   });
 }
 
+function startViteDevServer() {
+  viteProcess = spawn('npx', ['vite', '--port', '5173'], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    shell: true,
+    cwd: path.join(__dirname, '../'),
+  });
+
+  viteProcess.stdout.on('data', (data) => {
+    console.log(`Vite: ${data}`);
+    if (data.toString().includes('ready')) {
+      viteReady = true;
+      tryCreateWindow();
+    }
+  });
+
+  viteProcess.stderr.on('data', (data) => {
+    console.error(`Vite Error: ${data}`);
+  });
+}
+
 app.whenReady().then(() => {
+  if (process.env.NODE_ENV === 'development') {
+    startViteDevServer();
+  }
   startPythonServer();
 });
 
 app.on('window-all-closed', () => {
-  if (pythonProcess) {
-    pythonProcess.kill('SIGTERM');
-  }
+  if (pythonProcess) pythonProcess.kill('SIGTERM');
+  if (viteProcess) viteProcess.kill('SIGTERM');
   app.quit();
 });
 
 app.on('before-quit', () => {
-  if (pythonProcess) {
-    pythonProcess.kill('SIGTERM');
-  }
+  if (pythonProcess) pythonProcess.kill('SIGTERM');
+  if (viteProcess) viteProcess.kill('SIGTERM');
 });

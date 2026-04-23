@@ -25,21 +25,21 @@ def test_domain_filter_no_filter(addon, store):
 
 
 def test_domain_filter_exact_match(addon, store):
-    addon.domains = ["api.example.com"]
+    store.domains = ["api.example.com"]
     flow = MagicMock()
     flow.request = MagicMock(host="api.example.com")
     assert addon._should_capture(flow) is True
 
 
 def test_domain_filter_no_match(addon, store):
-    addon.domains = ["api.example.com"]
+    store.domains = ["api.example.com"]
     flow = MagicMock()
     flow.request = MagicMock(host="other.com")
     assert addon._should_capture(flow) is False
 
 
 def test_domain_filter_wildcard(addon, store):
-    addon.domains = ["*.example.com"]
+    store.domains = ["*.example.com"]
     flow = MagicMock()
     flow.request = MagicMock(host="api.example.com")
     assert addon._should_capture(flow) is True

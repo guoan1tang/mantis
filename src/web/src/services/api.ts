@@ -12,6 +12,27 @@ export async function fetchFlow(id: string): Promise<import('../types/flow').Flo
   return resp.json();
 }
 
+export async function clearFlows(): Promise<{ cleared: number }> {
+  const resp = await fetch(`${BASE_URL}/api/flows`, { method: 'DELETE' });
+  return resp.json();
+}
+
+export async function exportCurl(id: string): Promise<{ curl: string }> {
+  const resp = await fetch(`${BASE_URL}/api/flows/${id}/curl`);
+  if (!resp.ok) throw new Error(`Flow not found`);
+  return resp.json();
+}
+
+export async function fetchControl(): Promise<{ paused: boolean }> {
+  const resp = await fetch(`${BASE_URL}/api/control`);
+  return resp.json();
+}
+
+export async function togglePause(): Promise<{ paused: boolean }> {
+  const resp = await fetch(`${BASE_URL}/api/control/pause`, { method: 'POST' });
+  return resp.json();
+}
+
 export async function fetchDomains(): Promise<string[]> {
   const resp = await fetch(`${BASE_URL}/api/domains`);
   return resp.json();

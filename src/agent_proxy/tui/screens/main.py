@@ -1,14 +1,13 @@
 """Main screen with left (traffic) + right (AI chat) layout."""
 from textual.screen import Screen
 from textual.containers import Horizontal, Vertical
-from textual.widgets import DataTable
 
 from agent_proxy.core.store import Store
 from agent_proxy.memory.system import MemorySystem
-from agent_proxy.tui.widgets.flow_list import FlowList
 from agent_proxy.tui.widgets.flow_detail import FlowDetail
 from agent_proxy.tui.widgets.status_bar import StatusBar
 from agent_proxy.tui.widgets.ai_panel import AIPanel
+from agent_proxy.tui.widgets.flow_tree import FlowTree
 
 
 class MainScreen(Screen):
@@ -26,12 +25,13 @@ class MainScreen(Screen):
         height: 1fr;
         layout: vertical;
     }
-    #flow_list {
+    #flow_tree {
         width: 100%;
-        height: 50%;
+        height: 55%;
     }
     #flow_detail {
         width: 100%;
+        height: 45%;
     }
     #ai_panel {
         width: 1fr;
@@ -49,7 +49,7 @@ class MainScreen(Screen):
         yield StatusBar(id="status_bar")
         with Horizontal(id="main_area"):
             with Vertical(id="traffic_panel"):
-                yield FlowList(id="flow_list")
+                yield FlowTree(id="flow_tree")
                 yield FlowDetail(id="flow_detail")
             yield AIPanel(
                 agents=self.agents,
@@ -64,36 +64,23 @@ class MainScreen(Screen):
 
     async def refresh_flows(self) -> None:
         """Check for new flows and update the list."""
-        flow_list = self.query_one("#flow_list", FlowList)
+        flow_tree = self.query_one("#flow_tree", FlowTree)
         flow_detail = self.query_one("#flow_detail", FlowDetail)
         latest_flow = None
 
         while not self.store.flow_events.empty():
             flow = self.store.flow_events.get_nowait()
-            flow_list.add_flow(flow)
+            flow_tree.add_flow(flow)
             latest_flow = flow
 
-        # Auto-select latest flow and show detail
+        # Auto-select latest flow detail
         if latest_flow:
             flow_detail.show_flow(latest_flow)
-            # Move cursor to the new row
-            try:
-                row_count = flow_list.row_count
-                if row_count > 0:
-                    flow_list.move_cursor(row=row_count - 1)
-            except Exception:
-                pass
 
         status_bar = self.query_one("#status_bar", StatusBar)
         status_bar.update_status(
             domain="",
             port=8080,
             flow_count=len(self.store.flows),
+            monitored_domains=self.store.domains,
         )
-
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Show selected flow detail."""
-        flow_list = self.query_one("#flow_list", FlowList)
-        flow = flow_list.get_selected_flow()
-        flow_detail = self.query_one("#flow_detail", FlowDetail)
-        flow_detail.show_flow(flow)

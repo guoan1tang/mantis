@@ -1,4 +1,5 @@
 """AI chat panel - full-height right panel with thinking animation."""
+from rich.markup import escape
 from textual.widgets import Static, Input, LoadingIndicator
 from textual.containers import Vertical, Horizontal
 from textual import work
@@ -61,12 +62,12 @@ class AIPanel(Vertical):
         self._history: list[tuple[str, str]] = []  # (role, message)
 
     def compose(self):
-        yield Static("[bold]  AI Agent[/bold]", id="chat_header")
+        yield Static("[bold]  AI 助手[/bold]", id="chat_header")
         yield Static("", id="chat_messages")
         with Horizontal(id="thinking_area"):
             yield LoadingIndicator()
-            yield Static("Thinking...", id="thinking_text")
-        yield Input(placeholder="Ask AI about the traffic...", id="chat_input")
+            yield Static("分析中...", id="thinking_text")
+        yield Input(placeholder="向 AI 提问（例：分析流量、检查安全）...", id="chat_input")
 
     @property
     def input_widget(self) -> Input:
@@ -134,13 +135,13 @@ class AIPanel(Vertical):
         lines = []
         for role, msg in self._history[-10:]:  # Show last 10 messages
             if role == "user":
-                lines.append(f"[bold #87CEEB]You:[/bold #87CEEB] {msg}")
+                lines.append(f"[bold #87CEEB]You:[/bold #87CEEB] {escape(msg)}")
                 lines.append("")
             elif role == "assistant":
-                lines.append(f"[bold #90EE90]AI:[/bold #90EE90] {msg}")
+                lines.append(f"[bold #90EE90]AI:[/bold #90EE90] {escape(msg)}")
                 lines.append("")
             elif role == "error":
-                lines.append(f"[bold #FF6B6B]Error:[/bold #FF6B6B] {msg}")
+                lines.append(f"[bold #FF6B6B]Error:[/bold #FF6B6B] {escape(msg)}")
                 lines.append("")
         lines.append("")
         output.update("\n".join(lines))

@@ -11,16 +11,16 @@ class MockAgent(BaseAgent):
     """Generates mock response data based on captured traffic patterns."""
 
     def get_system_prompt(self) -> str:
-        return """You are a mock data generator. Analyze the provided HTTP traffic and generate realistic mock response data.
+        return """你是一个模拟数据生成器。分析提供的 HTTP 流量数据，生成合理的模拟响应数据。
 
-Return a JSON object:
+返回一个 JSON 对象：
 {
-  "url_pattern": "the URL pattern to mock",
+  "url_pattern": "要模拟的 URL 模式",
   "status_code": 200,
-  "mock_body": "JSON string of the mock response body"
+  "mock_body": "模拟响应体的 JSON 字符串"
 }
 
-The mock data should match the structure of the actual response but use placeholder values."""
+模拟数据应与实际响应的结构匹配，但使用占位值。"""
 
     async def execute(self, user_input: str) -> AgentResult:
         flows = list(self.store.flows.values())
@@ -30,26 +30,26 @@ The mock data should match the structure of the actual response but use placehol
         matching = [f for f in flows if url_pattern in f.url]
 
         if not matching:
-            return AgentResult(success=False, message=f"No captured traffic matching '{url_pattern}'")
+            return AgentResult(success=False, message=f"未找到匹配 '{url_pattern}' 的流量")
 
         flow = matching[-1]
-        context = f"Request: {flow.method} {flow.url}\nResponse status: {flow.status_code}\nResponse body: {flow.response_body.decode(errors='replace') if flow.response_body else 'empty'}"
+        context = f"请求: {flow.method} {flow.url}\n响应状态: {flow.status_code}\n响应体: {flow.response_body.decode(errors='replace') if flow.response_body else '空'}"
 
         try:
             result = await self.llm.call_json(
                 self.get_system_prompt(),
-                f"Generate mock data based on this traffic:\n{context}",
+                f"根据以下流量生成模拟数据:\n{context}",
             )
 
             body = result.get("mock_body", "{}").encode()
             rule = ProxyRule(
-                description=f"Mock {url_pattern}",
+                description=f"模拟 {url_pattern}",
                 condition=RuleCondition(url_pattern=url_pattern),
                 action=RuleAction(type="mock", status_code=result.get("status_code", 200), body=body),
                 source="ai",
             )
             self.store.add_rule(rule)
-            return AgentResult(success=True, message=f"Mock created for {url_pattern}", data={"rule_id": rule.id})
+            return AgentResult(success=True, message=f"模拟已创建: {url_pattern}", data={"rule_id": rule.id})
 
         except Exception as e:
-            return AgentResult(success=False, message=f"Failed to generate mock: {e}")
+            return AgentResult(success=False, message=f"模拟生成失败: {e}")

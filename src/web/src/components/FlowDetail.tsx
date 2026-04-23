@@ -15,7 +15,8 @@ export default function FlowDetail({ flowId }: { flowId: string | null }) {
   const decodeBody = (b64: string | null) => {
     if (!b64) return '(empty)';
     try {
-      const text = atob(b64);
+      const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const text = new TextDecoder('utf-8').decode(bytes);
       if (text.startsWith('{') || text.startsWith('[')) {
         return JSON.stringify(JSON.parse(text), null, 2);
       }

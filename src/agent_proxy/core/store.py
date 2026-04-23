@@ -16,6 +16,8 @@ class Store:
         self.config = config or AppConfig()
         self._flows: OrderedDict[str, FlowRecord] = OrderedDict()
         self._rules: list[ProxyRule] = []
+        self.domains: list[str] = list(self.config.capture.default_domains)
+        self.paused = False
         self.flow_events: asyncio.Queue[FlowRecord] = asyncio.Queue()
         self.rule_events: asyncio.Queue[ProxyRule] = asyncio.Queue()
 
@@ -58,6 +60,30 @@ class Store:
     def get_matching_rules(self, flow: FlowRecord) -> list[ProxyRule]:
         """Find all enabled rules matching a flow."""
         return [r for r in self._rules if r.enabled and r.condition.matches(flow)]
+
+    def add_domain(self, domain: str) -> bool:
+        """Add a domain to the monitored list."""
+        domain = domain.strip().lower()
+        if domain and domain not in self.domains:
+            self.domains.append(domain)
+            return True
+        return False
+
+    def remove_domain(self, domain: str) -> bool:
+        """Remove a domain from the monitored list."""
+        domain = domain.strip().lower()
+        if domain in self.domains:
+            self.domains.remove(domain)
+            return True
+        return False
+
+    def clear_flows(self) -> int:
+        """Clear all flow records, return count of cleared flows."""
+        count = len(self._flows)
+        self._flows.clear()
+        while not self.flow_events.empty():
+            self.flow_events.get_nowait()
+        return count
 
     def clear(self) -> None:
         """Clear all data."""

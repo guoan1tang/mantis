@@ -1,41 +1,50 @@
 """Request/Response detail widget."""
 import json
-import textwrap
 
-from textual.widgets import Static
+from rich.markup import escape
+from rich.text import Text
+from textual.widgets import RichLog
 
 from agent_proxy.core.models import FlowRecord
 
+_MAX_BODY = 4000
 
-def _format_body(body: bytes | None, content_type: str = "") -> str:
-    """Format request/response body for display."""
+
+def _format_body(body: bytes | None, content_type: str = "") -> Text:
+    """Format request/response body for display as plain Text (no markup)."""
     if not body:
-        return "[dim](empty)[/dim]"
+        return Text("(empty)", style="dim")
     try:
         text = body.decode("utf-8", errors="replace")
     except Exception:
-        return "[dim](binary data)[/dim]"
+        return Text("(binary data)", style="dim")
 
-    # Try to format as JSON
+    # Try to format as JSON for pretty-printing
     if "json" in content_type.lower() or text.lstrip().startswith(("{", "[")):
         try:
             parsed = json.loads(text)
-            return json.dumps(parsed, indent=2, ensure_ascii=False)[:4000]
+            text = json.dumps(parsed, indent=2, ensure_ascii=False)
         except (json.JSONDecodeError, ValueError):
             pass
 
-    return textwrap.shorten(text, width=4000, placeholder="...")
+    # Truncate without collapsing whitespace
+    if len(text) > _MAX_BODY:
+        text = text[:_MAX_BODY] + "\n... (truncated)"
+
+    return Text(text)
 
 
-def _format_headers(headers: dict) -> str:
-    """Format headers with color coding."""
+def _format_headers_text(headers: dict) -> Text:
+    """Format headers as plain Text (no markup)."""
+    if not headers:
+        return Text("  (none)", style="dim")
     lines = []
     for k, v in headers.items():
-        lines.append(f"  [bold]{k}[/bold]: {v}")
-    return "\n".join(lines) if lines else "  [dim](none)[/dim]"
+        lines.append(f"  {k}: {v}")
+    return Text("\n".join(lines))
 
 
-class FlowDetail(Static):
+class FlowDetail(RichLog):
     """Shows full request and response for selected flow."""
 
     DEFAULT_CSS = """
@@ -44,46 +53,47 @@ class FlowDetail(Static):
         height: 1fr;
         background: $surface;
         padding: 0 1;
-        overflow-y: scroll;
     }
     """
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.markup = True  # Enable markup for labels/headers
+        self.wrap = True  # Enable line wrapping
+
     def show_flow(self, flow: FlowRecord | None) -> None:
         """Display full request/response details."""
+        self.clear()
         if not flow:
-            self.update("[grey]No flow selected[/grey]")
+            self.write("[grey]No flow selected[/grey]")
             return
 
         status_color = "green" if flow.status_code and flow.status_code < 400 else "red"
-        modified_tag = " [yellow](modified)[/yellow]" if flow.modified else ""
-        intercepted_tag = " [cyan](intercepted)[/cyan]" if flow.intercepted else ""
+        modified_tag = " (modified)" if flow.modified else ""
+        intercepted_tag = " (intercepted)" if flow.intercepted else ""
 
-        sections = [
-            f"[bold underline]REQUEST[/bold underline]",
-            f"[bold]{flow.method}[/bold] {flow.url}",
-            f"Host: {flow.host}  Path: {flow.path}",
-            "",
-            f"[bold underline]Request Headers[/bold underline]",
-            _format_headers(flow.request_headers),
-            "",
-            f"[bold underline]Request Body[/bold underline]",
-            _format_body(flow.request_body, flow.content_type),
-            "",
-            f"[bold underline]RESPONSE[/bold underline]{modified_tag}{intercepted_tag}",
-            f"Status: [bold {status_color}]{flow.status_code or '(pending)'}[/bold {status_color}]",
-            f"Duration: {flow.duration_ms:.0f}ms  |  Size: {flow.size}B",
-            "",
-            f"[bold underline]Response Headers[/bold underline]",
-            _format_headers(flow.response_headers),
-            "",
-            f"[bold underline]Response Body[/bold underline]",
-            _format_body(flow.response_body, flow.content_type),
-        ]
+        self.write("[bold underline]REQUEST[/bold underline]")
+        self.write(f"[bold]{escape(flow.method)}[/bold] {escape(flow.url)}")
+        self.write(f"Host: {escape(flow.host)}  Path: {escape(flow.path)}")
+        self.write("")
+        self.write("[bold underline]Request Headers[/bold underline]")
+        self.write(_format_headers_text(flow.request_headers))
+        self.write("")
+        self.write("[bold underline]Request Body[/bold underline]")
+        self.write(_format_body(flow.request_body, flow.content_type))
+        self.write("")
+        self.write(f"[bold underline]RESPONSE[/bold underline]{modified_tag}{intercepted_tag}")
+        self.write(f"Status: [bold {status_color}]{flow.status_code or '(pending)'}[/bold {status_color}]")
+        self.write(f"Duration: {flow.duration_ms:.0f}ms  |  Size: {flow.size}B")
+        self.write("")
+        self.write("[bold underline]Response Headers[/bold underline]")
+        self.write(_format_headers_text(flow.response_headers))
+        self.write("")
+        self.write("[bold underline]Response Body[/bold underline]")
+        self.write(_format_body(flow.response_body, flow.content_type))
 
         if flow.security_issues:
-            sections.append("")
-            sections.append(f"[bold underline]Security Issues[/bold underline]")
+            self.write("")
+            self.write("[bold underline]Security Issues[/bold underline]")
             for issue in flow.security_issues:
-                sections.append(f"  [yellow]![/yellow] {issue}")
-
-        self.update("\n".join(sections))
+                self.write(Text(f"  ! {issue}", style="yellow"))

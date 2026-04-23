@@ -52,7 +52,15 @@ def set_system_proxy(host: str, port: int) -> bool:
             capture_output=True, timeout=5, check=True,
         )
         subprocess.run(
+            ["networksetup", "-setwebproxystate", service, "on"],
+            capture_output=True, timeout=5, check=True,
+        )
+        subprocess.run(
             ["networksetup", "-setsecurewebproxy", service, host, str(port)],
+            capture_output=True, timeout=5, check=True,
+        )
+        subprocess.run(
+            ["networksetup", "-setsecurewebproxystate", service, "on"],
             capture_output=True, timeout=5, check=True,
         )
         logger.info(f"System proxy set to {host}:{port} on {service}")

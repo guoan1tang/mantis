@@ -18,11 +18,10 @@ from agent_proxy.proxy.addon import AgentProxyAddon
 class ProxyEngine:
     """Manages mitmproxy lifecycle as an asyncio task."""
 
-    def __init__(self, store: Store, config: AppConfig, domains: list[str] | None = None):
+    def __init__(self, store: Store, config: AppConfig):
         self.store = store
         self.config = config
-        self.domains = domains or config.capture.default_domains
-        self.addon = AgentProxyAddon(store, self.domains)
+        self.addon = AgentProxyAddon(store)
         self.master: Master | None = None
         self._task: asyncio.Task | None = None
         self._healthy = True

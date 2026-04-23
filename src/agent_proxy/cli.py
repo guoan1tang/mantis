@@ -65,24 +65,29 @@ def server_main():
     # HTTP server port: proxy port + 1000
     http_port = config.proxy.listen_port + 1000
 
+    if config.proxy.auto_system_proxy:
+        set_system_proxy("127.0.0.1", config.proxy.listen_port)
+
     async def run():
         await engine.start()
 
-        app = create_app(store, agents)
+        app = create_app(store, agents, proxy_port=config.proxy.listen_port)
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, "127.0.0.1", http_port)
+        site = web.TCPSite(runner, "0.0.0.0", http_port)
         await site.start()
 
         rich.print(f"[bold green]Agent Proxy[/bold green] starting...")
         rich.print(f"  Proxy port: {config.proxy.listen_port}")
-        rich.print(f"  API server: http://127.0.0.1:{http_port}")
+        rich.print(f"  API server: http://0.0.0.0:{http_port}")
 
         try:
             await asyncio.Event().wait()
         except KeyboardInterrupt:
             pass
         finally:
+            if config.proxy.auto_system_proxy:
+                clear_system_proxy()
             await engine.stop()
             await runner.cleanup()
 

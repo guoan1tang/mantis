@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+*.egg-info
+dist/
+build/
+.eggs/
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# Scripts
+scripts/.server.pid
+
+# OS
+.DS_Store
+
+# User config
+~/.agent-proxy/

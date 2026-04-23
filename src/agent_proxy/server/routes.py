@@ -1,8 +1,9 @@
 """REST API route handlers for flows, domains, rules."""
+import shlex
 from aiohttp import web
 
 from agent_proxy.core.store import Store
-from agent_proxy.core.models import ProxyRule, RuleCondition, RuleAction
+from agent_proxy.core.models import ProxyRule, RuleCondition, RuleAction, FlowRecord
 
 
 def register_routes(app: web.Application) -> None:
@@ -10,11 +11,66 @@ def register_routes(app: web.Application) -> None:
     app.router.add_get("/api/flows", list_flows)
     app.router.add_get("/api/flows/{flow_id}", get_flow)
     app.router.add_get("/api/flows/{flow_id}/body", get_flow_body)
+    app.router.add_delete("/api/flows", clear_flows)
+    app.router.add_post("/api/flows/{flow_id}/curl", export_curl)
+    app.router.add_get("/api/control", get_control)
+    app.router.add_post("/api/control/pause", toggle_pause)
     app.router.add_get("/api/domains", list_domains)
     app.router.add_post("/api/domains", add_domain)
     app.router.add_delete("/api/domains/{domain}", delete_domain)
     app.router.add_get("/api/rules", list_rules)
     app.router.add_post("/api/rules", create_rule)
+
+
+def flow_to_curl(flow: FlowRecord) -> str:
+    """Convert a flow record to a curl command."""
+    method = flow.method.upper()
+    url = shlex.quote(flow.url)
+    cmd = f"curl -X {method} '{url}'"
+
+    # Add headers
+    for k, v in (flow.request_headers or {}).items():
+        if k.lower() not in ("host", "content-length"):
+            cmd += f" -H '{k}: {v}'"
+
+    # Add body if present
+    if flow.request_body:
+        try:
+            body = flow.request_body.decode("utf-8")
+            cmd += f" -d {shlex.quote(body)}"
+        except UnicodeDecodeError:
+            cmd += " # (binary body omitted)"
+
+    return cmd
+
+
+async def clear_flows(request: web.Request) -> web.Response:
+    """Clear all flow records."""
+    store: Store = request.app["store"]
+    count = store.clear_flows()
+    return web.json_response({"cleared": count})
+
+
+async def export_curl(request: web.Request) -> web.Response:
+    """Export a flow as a curl command."""
+    store: Store = request.app["store"]
+    flow = store.flows.get(request.match_info["flow_id"])
+    if not flow:
+        return web.json_response({"error": "Flow not found"}, status=404)
+    return web.json_response({"curl": flow_to_curl(flow)})
+
+
+async def get_control(request: web.Request) -> web.Response:
+    """Get control state (paused, etc)."""
+    store: Store = request.app["store"]
+    return web.json_response({"paused": store.paused})
+
+
+async def toggle_pause(request: web.Request) -> web.Response:
+    """Toggle capture pause state."""
+    store: Store = request.app["store"]
+    store.paused = not store.paused
+    return web.json_response({"paused": store.paused})
 
 
 async def list_flows(request: web.Request) -> web.Response:

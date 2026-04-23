@@ -11,6 +11,7 @@ from typing import Literal
 class FlowRecord:
     """Represents one HTTP(S) request-response pair."""
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
+    mitmproxy_id: str = ""
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     method: str = ""
     url: str = ""
@@ -45,6 +46,7 @@ class FlowRecord:
 
         result: dict = {
             "id": self.id,
+            "mitmproxy_id": self.mitmproxy_id,
             "timestamp": self.timestamp.isoformat(),
             "method": self.method,
             "url": self.url,

@@ -1,4 +1,5 @@
 export type WSEvent =
+  | { type: 'connected' }
   | { type: 'flow_added'; flow: any }
   | { type: 'flow_updated'; flow: any }
   | { type: 'domain_added'; domain: string }
@@ -13,8 +14,15 @@ export class WSService {
 
   connect(url?: string) {
     const backendUrl = import.meta.env.VITE_API_URL || '';
-    const defaultWsUrl = url || `${backendUrl || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname}:9080`}/ws/events`;
+    const defaultWsUrl = url || (backendUrl
+      ? `${backendUrl.replace('http', 'ws').replace('https', 'wss')}/ws/events`
+      : `ws://${location.hostname}:9080/ws/events`
+    );
     this.ws = new WebSocket(defaultWsUrl);
+    this.ws.onopen = () => {
+      this.reconnectAttempts = 0;
+      this.listeners.forEach(fn => fn({ type: 'connected' }));
+    };
     this.ws.onmessage = (e) => {
       try {
         const event: WSEvent = JSON.parse(e.data);

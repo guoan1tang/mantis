@@ -1,39 +1,49 @@
-# Agent Proxy
+# Mantis
 
-AI-driven HTTP/HTTPS interception proxy with natural language control.
+AI-driven HTTP/HTTPS interception proxy with natural language control. Desktop UI for capturing, analyzing, and rewriting network traffic.
 
 ## Features
 
-- **Domain-filtered traffic capture** -- specify domains via CLI
-- **HTTPS interception** -- mitmproxy TLS interception with CA certificate management
-- **Mobile proxy support** -- proxy traffic from phones on the same network
-- **Natural language commands** -- create rules, generate mocks, analyze security via AI
-- **Persistent memory** -- learns your patterns across sessions (Hermes-style 4-layer memory)
-- **Terminal TUI** -- real-time traffic visualization in your terminal
+- **Desktop UI** -- Charles-like GUI with real-time traffic inspection
+- **Mobile capture** -- QR code setup for phone proxy, certificate download
+- **HTTPS interception** -- mitmproxy TLS interception
+- **Natural language control** -- rewrite rules, mocks, security analysis via AI
+- **Domain management** -- add/remove monitored domains at runtime
+- **Persistent memory** -- learns your patterns across sessions
+- **Terminal TUI** -- optional terminal-based interface
 
-## Installation
+## Requirements
+
+- Python >= 3.12
+- Node.js
+
+## Quick Start
 
 ```bash
-pip install -e .
+git clone https://github.com/xxx/mantis.git
+cd mantis
+make install
+make start
 ```
 
-## Usage
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `make install` | Install all dependencies (Python + Node.js + mitmproxy cert) |
+| `make start` | Launch desktop app (auto-starts proxy server) |
+| `make stop` | Stop the proxy server and clear system proxy |
+| `make build` | Build distributable desktop app |
+| `make clean` | Remove build artifacts and caches |
+
+## Manual Start (advanced)
 
 ```bash
-# Basic usage
-agent-proxy --domain api.example.com
+# TUI mode (terminal)
+agent-proxy
 
-# With custom LLM
-agent-proxy --domain api.example.com --api-key sk-xxx --model gpt-4o
-
-# Custom port
-agent-proxy --domain api.example.com --port 9090
-
-# Multiple domains
-agent-proxy --domain api.example.com --domain cdn.example.com
-
-# Skip system proxy
-agent-proxy --domain api.example.com --no-system-proxy
+# Server mode (no TUI, for desktop UI)
+agent-proxy --server --port 8080
 ```
 
 ## Natural Language Commands
@@ -48,7 +58,8 @@ agent-proxy --domain api.example.com --no-system-proxy
 ## Architecture
 
 - **mitmproxy** as proxy engine (HTTPS MITM)
-- **Textual** for terminal UI
+- **aiohttp** for REST API + WebSocket + SSE
+- **Electron + React** for desktop UI
 - **OpenAI SDK** for LLM calls
 - **Hermes-inspired memory** (Working, Episodic, Semantic, Procedural)
 
@@ -59,11 +70,16 @@ Config file: `~/.agent-proxy/config.yaml`
 ## Project Structure
 
 ```
-src/agent_proxy/
-├── core/          # Data models, Store, config
-├── proxy/         # mitmproxy engine, addon, cert management
-├── agents/        # LLM client, RuleAgent, MockAgent, SecurityAgent, AnalysisAgent
-├── memory/        # 4-layer memory system
-├── tui/           # Textual TUI (screens, widgets, styles)
-└── utils/         # System proxy config, QR code generation
+src/
+├── agent_proxy/
+│   ├── core/          # Data models, Store, config
+│   ├── proxy/         # mitmproxy engine, addon, cert management
+│   ├── agents/        # LLM client, agents (domain, rule, mock, security, analysis)
+│   ├── memory/        # 4-layer memory system
+│   ├── server/        # aiohttp REST API + WebSocket + SSE
+│   ├── tui/           # Textual TUI (screens, widgets, styles)
+│   └── utils/         # System proxy config, QR code generation
+└── web/
+    ├── electron/       # Electron main/preload process
+    └── src/            # React frontend
 ```

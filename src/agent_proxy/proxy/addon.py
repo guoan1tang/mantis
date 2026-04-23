@@ -14,21 +14,24 @@ from agent_proxy.core.store import Store
 class AgentProxyAddon:
     """mitmproxy addon that captures and intercepts traffic."""
 
-    def __init__(self, store: Store, domains: list[str] | None = None):
+    def __init__(self, store: Store):
         self.store = store
-        self.domains = domains or []
         self._start_times: dict[str, float] = {}
+        self._already_added: set[str] = set()  # Track flows already added in request()
 
     def add_arguments(self, loader: Loader) -> None:
         """No custom arguments needed."""
         pass
 
     def _should_capture(self, flow: mitmproxy.http.HTTPFlow) -> bool:
-        """Check if flow matches configured domains."""
-        if not self.domains:
+        """Check if flow should be captured."""
+        if self.store.paused:
+            return False
+        domains = self.store.domains
+        if not domains:
             return True
         host = flow.request.host
-        return any(self._domain_match(host, d) for d in self.domains)
+        return any(self._domain_match(host, d) for d in domains)
 
     @staticmethod
     def _domain_match(host: str, pattern: str) -> bool:
@@ -57,6 +60,7 @@ class AgentProxyAddon:
                 )
                 temp_flow.intercepted = True
                 temp_flow.status_code = action.status_code or 403
+                self._already_added.add(flow.id)
                 self.store.add_flow(temp_flow)
                 return
 
@@ -70,6 +74,7 @@ class AgentProxyAddon:
                 temp_flow.modified = True
                 temp_flow.status_code = action.status_code or 200
                 temp_flow.response_body = action.body or b""
+                self._already_added.add(flow.id)
                 self.store.add_flow(temp_flow)
                 return
 
@@ -83,6 +88,9 @@ class AgentProxyAddon:
         """Handle response."""
         if not self._should_capture(flow):
             return
+        if flow.id in self._already_added:
+            return  # Already added in request() (block/mock)
+        self._already_added.discard(flow.id)
 
         record = self._to_flow_record(flow)
 
@@ -124,6 +132,8 @@ class AgentProxyAddon:
         max_body = self.store.config.capture.max_body_size
 
         record = FlowRecord(
+            id=flow.id,
+            mitmproxy_id=flow.id,
             method=flow.request.method,
             url=url,
             request_headers=dict(flow.request.headers),
