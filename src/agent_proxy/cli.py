@@ -27,6 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=None, help="Proxy listen port (default: 8080)")
     parser.add_argument("--api-key", type=str, default=None, help="OpenAI API key")
     parser.add_argument("--model", type=str, default=None, help="LLM model name")
+    parser.add_argument("--base-url", type=str, default=None, help="LLM API base URL")
     parser.add_argument("--no-cert-check", action="store_true", help="Skip CA certificate check")
     parser.add_argument("--no-system-proxy", action="store_true", help="Don't auto-configure system proxy")
     parser.add_argument("--server", action="store_true", help="Run API server mode (no TUI)")
@@ -44,6 +45,8 @@ def server_main():
         config.llm.api_key = args.api_key
     if args.model:
         config.llm.model = args.model
+    if args.base_url:
+        config.llm.base_url = args.base_url
 
     store = Store(config)
     llm_client = LLMClient(config.llm) if config.llm.api_key else None
@@ -109,6 +112,8 @@ def main():
         config.llm.api_key = args.api_key
     if args.model:
         config.llm.model = args.model
+    if args.base_url:
+        config.llm.base_url = args.base_url
     if args.no_system_proxy:
         config.proxy.auto_system_proxy = False
 

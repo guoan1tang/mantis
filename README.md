@@ -20,11 +20,40 @@ AI-driven HTTP/HTTPS interception proxy with natural language control. Desktop U
 ## Quick Start
 
 ```bash
-git clone https://github.com/xxx/mantis.git
+git clone https://github.com/guoan1tang/mantis.git
 cd mantis
 make install
 make start
 ```
+
+## Configuration
+
+### Configure LLM Model
+
+The AI features (traffic analysis, rule generation, security checks) require an LLM API key.
+
+**Option 1: Config file** (recommended)
+
+Create `~/.agent-proxy/config.yaml`:
+
+```yaml
+llm:
+  api_key: "your-api-key"
+  base_url: "https://api.openai.com/v1"   # OpenAI-compatible API
+  model: "gpt-4o"
+```
+
+**Option 2: CLI arguments**
+
+```bash
+# OpenAI
+agent-proxy --server --api-key sk-xxx --model gpt-4o
+
+# Compatible API (e.g. Dashscope, DeepSeek, local LLM)
+agent-proxy --server --api-key xxx --model qwen-plus --base-url https://dashscope.aliyuncs.com/compatible-mode/v1
+```
+
+Without an API key, the app runs normally but AI features will be unavailable.
 
 ## Commands
 
@@ -63,9 +92,7 @@ agent-proxy --server --port 8080
 - **OpenAI SDK** for LLM calls
 - **Hermes-inspired memory** (Working, Episodic, Semantic, Procedural)
 
-## Configuration
-
-Config file: `~/.agent-proxy/config.yaml`
+```
 
 ## Project Structure
 
