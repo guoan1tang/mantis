@@ -42,6 +42,9 @@ fi
 # Start Python server
 echo "Starting Agent Proxy server..."
 cd "$ROOT_DIR"
+if [ -f "$ROOT_DIR/.venv/bin/activate" ]; then
+    source "$ROOT_DIR/.venv/bin/activate"
+fi
 python3 -m agent_proxy --server --port $PROXY_PORT &
 SERVER_PID=$!
 echo "$SERVER_PID" > "$PID_FILE"
