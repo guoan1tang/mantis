@@ -30,6 +30,7 @@ async def health_handler(request: web.Request) -> web.Response:
     proxy_port = request.app.get("proxy_port", 8080)
     api_port = proxy_port + 1000
     host = get_local_ip()
+    api_port = proxy_port + 1000
     return web.json_response({
         "status": "ok",
         "flows": len(store.flows),
@@ -37,7 +38,7 @@ async def health_handler(request: web.Request) -> web.Response:
         "rules": len(store.rules),
         "proxy_host": host,
         "proxy_port": proxy_port,
-        "cert_url": f"http://{host}:5173/cert/setup",
+        "cert_url": f"http://{host}:{api_port}/cert/setup",
     })
 
 

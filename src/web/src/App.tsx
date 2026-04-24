@@ -31,8 +31,7 @@ export default function App() {
         fetch('/api/health').then(r => r.json()).then(data => {
           setProxyHost(data.proxy_host);
           setProxyPort(data.proxy_port);
-          // Construct cert URL via Vite dev server (proxied to Python)
-          setCertUrl(`${window.location.origin}/cert/setup`);
+          setCertUrl(data.cert_url);
           // Fetch pause state
           fetch('/api/control').then(r2 => r2.json()).then(d => setPaused(d.paused)).catch(console.error);
         }).catch(console.error);
