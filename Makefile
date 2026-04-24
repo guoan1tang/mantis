@@ -16,7 +16,10 @@ check-env:
 
 python-deps: $(VENV)/bin/activate
 	@echo "Installing Python dependencies..."
-	$(VENV_PIP) install -e ".[dev]"
+	@echo "Clearing system proxy before install..."
+	@networksetup -setwebproxystate Wi-Fi off 2>/dev/null || true
+	@networksetup -setsecurewebproxystate Wi-Fi off 2>/dev/null || true
+	@unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy 2>/dev/null; PIP_CONFIG_FILE=$$(pwd)/pip.conf $(VENV_PIP) install -e ".[dev]"
 
 $(VENV)/bin/activate:
 	@echo "Creating virtual environment..."
